@@ -1,10 +1,10 @@
 {
   "domain": "zai_conversation",
   "name": "z.ai Conversation",
-  "codeowners": ["@s-iannicelli"],
+  "codeowners": ["@iannuz92"],
   "config_flow": true,
   "dependencies": ["conversation"],
-  "documentation": "https://github.com/yourusername/zai-conversation",
+  "documentation": "https://github.com/iannuz92/zai-conversation",
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "requirements": ["anthropic==0.40.0"],
