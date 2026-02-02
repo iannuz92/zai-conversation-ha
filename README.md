@@ -6,10 +6,10 @@ A custom integration for Home Assistant that adds z.ai's GLM-4 models as convers
 
 ## Features
 
-- 🤖 **GLM-4 Models Support**: Access to glm-4-flash, glm-4-plus, glm-4-air, and more
+- 🤖 **GLM-4 Models Support**: Access to glm-4.7, glm-4-flash, glm-4-plus, glm-4-air, and more
 - 💬 **Conversation Agent**: Full integration with Home Assistant's conversation system
 - 🔧 **Function Calling**: Control Home Assistant devices through natural language
-- ⚡ **Streaming Responses**: Real-time streaming for faster interaction
+- ⚡ **Fast Responses**: Optimized for quick replies
 - 🎛️ **Customizable**: Configure model, temperature, max tokens, and prompts
 - 🔐 **Secure**: API key stored securely in Home Assistant
 
@@ -21,7 +21,7 @@ A custom integration for Home Assistant that adds z.ai's GLM-4 models as convers
 2. Click on "Integrations"
 3. Click the three dots in the top right corner
 4. Select "Custom repositories"
-5. Add this repository URL: `https://github.com/yourusername/zai-conversation`
+5. Add this repository URL: `https://github.com/iannuz92/zai-conversation-ha`
 6. Select category: "Integration"
 7. Click "Add"
 8. Find "z.ai Conversation" in the integration list and install it
@@ -58,7 +58,7 @@ The integration will validate your credentials by making a test connection to z.
 After adding the integration, you'll have a conversation agent automatically created. You can configure it:
 
 1. Go to the z.ai integration page
-2. Click on the conversation agent subentry
+2. Click **Configure** on the integration
 3. Configure options:
 
 #### Basic Options
@@ -71,6 +71,7 @@ After adding the integration, you'll have a conversation agent automatically cre
 
 #### Advanced Options (disable "Use recommended settings")
 - **Model**: Choose from available GLM-4 models
+  - `glm-4.7`: Recommended default
   - `glm-4-flash`: Fastest, most cost-effective
   - `glm-4-plus`: Most capable, best quality
   - `glm-4-air`: Balanced performance
@@ -111,6 +112,7 @@ confirm the action after completing it.
 
 | Model | Description | Best For |
 |-------|-------------|----------|
+| glm-4.7 | Recommended default | General use, best overall |
 | glm-4-flash | Fastest response, lower cost | Quick queries, simple tasks |
 | glm-4-plus | Highest quality, most capable | Complex reasoning, detailed responses |
 | glm-4-air | Balanced performance | General use, good balance |
@@ -157,12 +159,7 @@ If you're using a proxy or custom endpoint:
 
 ### Multiple Conversation Agents
 
-You can create multiple conversation agents with different configurations:
-
-1. Go to the z.ai integration page
-2. Click "Add Subentry"
-3. Select "Conversation"
-4. Configure with different settings (model, prompt, etc.)
+You can create multiple conversation agents with different configurations by adding multiple z.ai integrations, each with its own options.
 
 ## Development
 
@@ -171,14 +168,14 @@ This integration is built following Home Assistant's development guidelines and 
 ### Requirements
 
 - Home Assistant 2024.1.0 or later
-- Python 3.11 or later
+- Python version provided by your Home Assistant installation
 - `anthropic` Python package (v0.40.0)
 
 ## Support
 
 For issues, feature requests, or questions:
 
-- Open an issue on [GitHub](https://github.com/yourusername/zai-conversation/issues)
+- Open an issue on [GitHub](https://github.com/iannuz92/zai-conversation-ha/issues)
 - Check existing issues for solutions
 - Include Home Assistant logs when reporting bugs
 
@@ -195,7 +192,7 @@ MIT License - See LICENSE file for details
 ### Version 1.0.0 (Initial Release)
 
 - Initial release with z.ai GLM-4 support
-- Conversation agent with streaming
+- Conversation agent for Assist
 - Function calling for device control
 - Configurable models and parameters
 - HACS compatibility
