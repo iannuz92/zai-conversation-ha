@@ -4,7 +4,7 @@
   "codeowners": ["@iannuz92"],
   "config_flow": true,
   "dependencies": ["conversation"],
-  "documentation": "https://github.com/iannuz92/zai-conversation",
+  "documentation": "https://github.com/iannuz92/zai-conversation-ha",
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "requirements": ["anthropic==0.40.0"],
