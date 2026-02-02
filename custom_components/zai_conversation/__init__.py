@@ -34,6 +34,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ZaiConfigEntry) -> bool:
                 anthropic.AsyncAnthropic,
                 api_key=api_key,
                 base_url=base_url,
+                default_headers={"x-api-key": api_key},
             )
         )
     except Exception as err:

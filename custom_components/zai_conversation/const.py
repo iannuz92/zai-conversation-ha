@@ -21,7 +21,7 @@ CONF_RECOMMENDED: Final = "recommended"
 DEFAULT_BASE_URL: Final = "https://api.z.ai/api/anthropic"
 
 DEFAULT: Final = {
-    CONF_CHAT_MODEL: "glm-4-flash",
+    CONF_CHAT_MODEL: "glm-4.7",
     CONF_MAX_TOKENS: 3000,
     CONF_TEMPERATURE: 1.0,
     CONF_RECOMMENDED: True,
@@ -29,6 +29,7 @@ DEFAULT: Final = {
 
 # Available GLM-4 models
 MODELS: Final = [
+    "glm-4.7",
     "glm-4-flash",
     "glm-4-plus",
     "glm-4-air",

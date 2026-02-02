@@ -86,7 +86,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> None:
     # Test the connection by making a simple API call
     try:
         await client.messages.create(
-            model="glm-4-flash",
+            model="glm-4.7",
             max_tokens=10,
             messages=[{"role": "user", "content": "test"}],
             timeout=10.0,
