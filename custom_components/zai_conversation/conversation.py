@@ -55,11 +55,7 @@ async def async_setup_entry(
     """Set up conversation entities."""
     assert isinstance(config_entry, ZaiConfigEntry)
 
-    async_add_entities(
-        ZaiConversationEntity(config_entry, subentry)
-        for subentry in config_entry.subentries
-        if subentry.type == SUBENTRY_CONVERSATION
-    )
+    async_add_entities([ZaiConversationEntity(config_entry)])
 
 
 def _format_tool(
@@ -260,10 +256,11 @@ class ZaiConversationEntity(
 
     _attr_supports_streaming = True
 
-    def __init__(self, entry: ZaiConfigEntry, subentry: ConfigSubentry) -> None:
+    def __init__(self, entry: ZaiConfigEntry) -> None:
         """Initialize the conversation entity."""
-        super().__init__(entry, subentry)
-        self._attr_name = None
+        super().__init__(entry, entry)
+        self._attr_name = "z.ai"
+        self._attr_unique_id = entry.entry_id
 
     @property
     def supported_languages(self) -> list[str] | Literal["*"]:
@@ -276,7 +273,7 @@ class ZaiConversationEntity(
         chat_log: conversation.ChatLog,
     ) -> conversation.ConversationResult:
         """Handle a conversation message."""
-        options = self.subentry.data
+        options = self.entry.options
 
         await chat_log.async_provide_llm_data(
             user_input.as_llm_context(DOMAIN),
@@ -295,7 +292,7 @@ class ZaiConversationEntity(
     ) -> None:
         """Process chat log with z.ai API."""
         client: anthropic.AsyncAnthropic = self.entry.runtime_data
-        options = self.subentry.data
+        options = self.entry.options
 
         # Get model configuration
         model = (

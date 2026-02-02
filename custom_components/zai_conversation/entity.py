@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from homeassistant.config_entries import ConfigSubentry
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity import Entity
 
@@ -23,16 +22,15 @@ class ZaiBaseLLMEntity(Entity):
 
     _attr_has_entity_name = True
 
-    def __init__(self, entry: ZaiConfigEntry, subentry: ConfigSubentry) -> None:
+    def __init__(self, entry: ZaiConfigEntry, config_entry: ConfigEntry) -> None:
         """Initialize the entity."""
         self.entry = entry
-        self.subentry = subentry
-        self._attr_unique_id = subentry.subentry_id
+        self._attr_unique_id = config_entry.entry_id
 
         self._attr_device_info = dr.DeviceInfo(
-            identifiers={(DOMAIN, subentry.subentry_id)},
-            name=subentry.title,
+            identifiers={(DOMAIN, config_entry.entry_id)},
+            name="z.ai",
             manufacturer="z.ai",
-            model=subentry.data.get(CONF_CHAT_MODEL, DEFAULT[CONF_CHAT_MODEL]),
+            model=config_entry.options.get(CONF_CHAT_MODEL, DEFAULT[CONF_CHAT_MODEL]),
             entry_type=dr.DeviceEntryType.SERVICE,
         )

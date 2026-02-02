@@ -15,7 +15,7 @@ from homeassistant.config_entries import (
     ConfigFlow,
     ConfigFlowResult,
     ConfigSubentry,
-    ConfigSubentryFlowHandler,
+    OptionsFlow,
 )
 from homeassistant.const import CONF_API_KEY, CONF_NAME
 from homeassistant.core import HomeAssistant
@@ -109,7 +109,11 @@ class ZaiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for z.ai Conversation."""
 
     VERSION = 1
-    MINOR_VERSION = 1
+
+    @staticmethod
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        """Get the options flow for this handler."""
+        return ZaiOptionsFlowHandler(config_entry)
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -135,13 +139,7 @@ class ZaiConfigFlow(ConfigFlow, domain=DOMAIN):
                 return self.async_create_entry(
                     title="z.ai",
                     data=user_input,
-                    subentries=[
-                        ConfigSubentry(
-                            type=SUBENTRY_CONVERSATION,
-                            title=DEFAULT_CONVERSATION_NAME,
-                            data=RECOMMENDED_OPTIONS,
-                        ),
-                    ],
+                    options=RECOMMENDED_OPTIONS,
                 )
 
         return self.async_show_form(
@@ -151,15 +149,25 @@ class ZaiConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
 
-class ConversationSubentryFlowHandler(ConfigSubentryFlowHandler, domain=DOMAIN):
-    """Handle conversation subentry configuration."""
+class ZaiOptionsFlowHandler(OptionsFlow):
+    """Handle options flow for z.ai Conversation."""
 
-    type = SUBENTRY_CONVERSATION
+    def __init__(self, config_entry: ConfigEntry) -> None:
+        """Initialize options flow."""
+        self.config_entry = config_entry
+
+
+class ZaiOptionsFlowHandler(OptionsFlow):
+    """Handle options flow for z.ai Conversation."""
+
+    def __init__(self, config_entry: ConfigEntry) -> None:
+        """Initialize options flow."""
+        self.config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle conversation subentry initialization."""
+        """Handle conversation agent configuration."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -168,28 +176,32 @@ class ConversationSubentryFlowHandler(ConfigSubentryFlowHandler, domain=DOMAIN):
                 if not recommended:
                     return await self.async_step_advanced()
 
-            return self.async_create_subentry(
-                title=user_input.pop(CONF_NAME, DEFAULT_CONVERSATION_NAME),
-                data={**RECOMMENDED_OPTIONS, **user_input},
-            )
+            return self.async_create_entry(title="", data=user_input)
 
         schema_dict: dict[vol.Marker, Any] = {}
+        options = self.config_entry.options
 
-        if self.subentry_id is None:
-            schema_dict[vol.Required(CONF_NAME, default=DEFAULT_CONVERSATION_NAME)] = (
-                TextSelector()
+        schema_dict[vol.Optional(CONF_PROMPT, default=options.get(CONF_PROMPT, ""))] = (
+            TemplateSelector()
+        )
+        schema_dict[
+            vol.Optional(
+                CONF_LLM_HASS_API,
+                default=options.get(CONF_LLM_HASS_API, RECOMMENDED_OPTIONS[CONF_LLM_HASS_API]),
             )
-
-        schema_dict[vol.Optional(CONF_PROMPT)] = TemplateSelector()
-        schema_dict[vol.Optional(CONF_LLM_HASS_API)] = SelectSelector(
+        ] = SelectSelector(
             SelectSelectorConfig(
                 mode=SelectSelectorMode.DROPDOWN,
                 options=["none", "assist", "intent"],
             )
         )
 
-        if self.subentry_id is None:
-            schema_dict[vol.Optional(CONF_RECOMMENDED, default=True)] = bool
+        schema_dict[
+            vol.Optional(
+                CONF_RECOMMENDED,
+                default=options.get(CONF_RECOMMENDED, RECOMMENDED_OPTIONS[CONF_RECOMMENDED]),
+            )
+        ] = bool
 
         return self.async_show_form(
             step_id="init",
@@ -204,14 +216,19 @@ class ConversationSubentryFlowHandler(ConfigSubentryFlowHandler, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            return self.async_create_subentry(
-                title=DEFAULT_CONVERSATION_NAME,
+            return self.async_create_entry(
+                title="",
                 data={CONF_RECOMMENDED: False, **user_input},
             )
 
+        options = self.config_entry.options
+
         schema = vol.Schema(
             {
-                vol.Required(CONF_CHAT_MODEL, default=DEFAULT[CONF_CHAT_MODEL]): (
+                vol.Required(
+                    CONF_CHAT_MODEL,
+                    default=options.get(CONF_CHAT_MODEL, DEFAULT[CONF_CHAT_MODEL]),
+                ): (
                     SelectSelector(
                         SelectSelectorConfig(
                             mode=SelectSelectorMode.DROPDOWN,
@@ -220,7 +237,10 @@ class ConversationSubentryFlowHandler(ConfigSubentryFlowHandler, domain=DOMAIN):
                         )
                     )
                 ),
-                vol.Optional(CONF_MAX_TOKENS, default=DEFAULT[CONF_MAX_TOKENS]): (
+                vol.Optional(
+                    CONF_MAX_TOKENS,
+                    default=options.get(CONF_MAX_TOKENS, DEFAULT[CONF_MAX_TOKENS]),
+                ): (
                     NumberSelector(
                         NumberSelectorConfig(
                             min=1,
@@ -229,7 +249,10 @@ class ConversationSubentryFlowHandler(ConfigSubentryFlowHandler, domain=DOMAIN):
                         )
                     )
                 ),
-                vol.Optional(CONF_TEMPERATURE, default=DEFAULT[CONF_TEMPERATURE]): (
+                vol.Optional(
+                    CONF_TEMPERATURE,
+                    default=options.get(CONF_TEMPERATURE, DEFAULT[CONF_TEMPERATURE]),
+                ): (
                     NumberSelector(
                         NumberSelectorConfig(
                             min=0,
