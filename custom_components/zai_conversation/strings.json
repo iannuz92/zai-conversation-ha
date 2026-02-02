@@ -1,0 +1,57 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to z.ai",
+        "description": "Enter your z.ai API credentials",
+        "data": {
+          "api_key": "API Key",
+          "base_url": "Base URL"
+        }
+      }
+    },
+    "error": {
+      "authentication_error": "Invalid API key",
+      "cannot_connect": "Cannot connect to z.ai",
+      "timeout_connect": "Connection timeout",
+      "unknown": "Unknown error occurred"
+    },
+    "abort": {
+      "already_configured": "z.ai is already configured"
+    }
+  },
+  "subentry": {
+    "conversation": {
+      "step": {
+        "init": {
+          "title": "Configure z.ai Conversation Agent",
+          "description": "Configure your z.ai conversation agent",
+          "data": {
+            "name": "Name",
+            "prompt": "Prompt Template",
+            "llm_hass_api": "Control Home Assistant",
+            "recommended": "Use recommended settings"
+          },
+          "data_description": {
+            "prompt": "Prompt template to use for generating responses",
+            "llm_hass_api": "Allow the integration to control Home Assistant"
+          }
+        },
+        "advanced": {
+          "title": "Advanced Configuration",
+          "description": "Configure advanced options",
+          "data": {
+            "chat_model": "Model",
+            "max_tokens": "Maximum Tokens",
+            "temperature": "Temperature"
+          },
+          "data_description": {
+            "chat_model": "The GLM model to use for conversation",
+            "max_tokens": "Maximum number of tokens to generate",
+            "temperature": "Sampling temperature (0-1)"
+          }
+        }
+      }
+    }
+  }
+}
