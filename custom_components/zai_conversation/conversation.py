@@ -10,23 +10,18 @@ from typing import Any, Literal
 
 import anthropic
 from anthropic.types import (
+    Message,
     MessageParam,
-    MessageStreamEvent,
-    RawContentBlockDeltaEvent,
-    RawContentBlockStartEvent,
-    RawMessageDeltaEvent,
-    RawMessageStartEvent,
     TextBlockParam,
     ToolParam,
 )
-from anthropic.types.message_create_params import MessageCreateParamsStreaming
-from anthropic.types.text_citation_param import TextCitationParam
 import voluptuous_openapi
 
 from homeassistant.components import conversation
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import llm
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import ulid
 
@@ -53,8 +48,6 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up conversation entities."""
-    assert isinstance(config_entry, ZaiConfigEntry)
-
     async_add_entities([ZaiConversationEntity(config_entry)])
 
 
@@ -86,29 +79,30 @@ def _convert_content(
                 message_parts.append({"type": "text", "text": content.content})
 
             # Add attachments
-            for attachment in content.attachments:
-                if attachment.content_type.startswith("image/"):
-                    message_parts.append(
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": attachment.content_type,
-                                "data": attachment.data,
-                            },
-                        }
-                    )
-                elif attachment.content_type == "application/pdf":
-                    message_parts.append(
-                        {
-                            "type": "document",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "application/pdf",
-                                "data": attachment.data,
-                            },
-                        }
-                    )
+            if content.attachments:
+                for attachment in content.attachments:
+                    if attachment.content_type.startswith("image/"):
+                        message_parts.append(
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": attachment.content_type,
+                                    "data": attachment.data,
+                                },
+                            }
+                        )
+                    elif attachment.content_type == "application/pdf":
+                        message_parts.append(
+                            {
+                                "type": "document",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": "application/pdf",
+                                    "data": attachment.data,
+                                },
+                            }
+                        )
 
             messages.append({"role": "user", "content": message_parts})
 
@@ -120,36 +114,36 @@ def _convert_content(
                 message_parts.append({"type": "text", "text": content.content})
 
             # Add tool uses
-            for tool_call in content.tool_calls:
-                message_parts.append(
-                    {
-                        "type": "tool_use",
-                        "id": tool_call.id,
-                        "name": tool_call.name,
-                        "input": tool_call.args,
-                    }
-                )
+                if content.tool_calls:
+                    for tool_call in content.tool_calls:
+                        message_parts.append(
+                            {
+                                "type": "tool_use",
+                                "id": tool_call.id,
+                                "name": tool_call.name,
+                                "input": tool_call.args,
+                            }
+                        )
 
             messages.append({"role": "assistant", "content": message_parts})
 
         elif isinstance(content, conversation.ToolResultContent):
-            # Tool results
-            for tool_result in content.tool_results:
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "tool_result",
-                                "tool_use_id": tool_result.call_id,
-                                "content": (
-                                    tool_result.result if tool_result.result else ""
-                                ),
-                                "is_error": tool_result.error,
-                            }
-                        ],
-                    }
-                )
+            # Tool result
+            messages.append(
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": content.tool_call_id,
+                            "content": (
+                                content.tool_result if content.tool_result else ""
+                            ),
+                            "is_error": False,
+                        }
+                    ],
+                }
+            )
 
     return messages
 
@@ -160,90 +154,49 @@ class CitationDetails:
 
     index: int = 0
     length: int = 0
-    citations: list[TextCitationParam] = field(default_factory=list)
+    citations: list[dict] = field(default_factory=list)
 
 
-async def _transform_stream(
+async def _process_message(
     chat_log: conversation.ChatLog,
-    stream: anthropic.AsyncStream[MessageStreamEvent],
-    output_tool: str | None = None,
-) -> AsyncGenerator[conversation.Content, None]:
-    """Transform z.ai stream to HA conversation format."""
-    content_type: Literal["text", "tool_use"] | None = None
+    message: Message,
+    agent_id: str,
+) -> None:
+    """Transform a z.ai message into HA conversation content."""
     content_text = ""
-    tool_call_id: str | None = None
-    tool_call_name: str | None = None
-    tool_call_args = ""
+    assistant_added = False
 
-    input_tokens = 0
-    output_tokens = 0
-
-    async for event in stream:
-        if isinstance(event, RawMessageStartEvent):
-            input_tokens = event.message.usage.input_tokens
-
-        elif isinstance(event, RawContentBlockStartEvent):
-            if event.content_block.type == "text":
-                content_type = "text"
-            elif event.content_block.type == "tool_use":
-                content_type = "tool_use"
-                tool_call_id = event.content_block.id
-                tool_call_name = event.content_block.name
-
-        elif isinstance(event, RawContentBlockDeltaEvent):
-            if content_type == "text" and event.delta.type == "text_delta":
-                content_text += event.delta.text
-                yield conversation.AssistantStreamChunk(text=event.delta.text)
-
-            elif content_type == "tool_use" and event.delta.type == "input_json_delta":
-                tool_call_args += event.delta.partial_json
-
-        elif isinstance(event, RawMessageDeltaEvent):
-            output_tokens = event.usage.output_tokens
-
-            # Finalize tool call if any
-            if content_type == "tool_use" and tool_call_id and tool_call_name:
-                try:
-                    parsed_args = json.loads(tool_call_args)
-                    chat_log.async_add_assistant_content(
-                        conversation.AssistantContent(
-                            tool_calls=[
-                                conversation.ToolCall(
-                                    id=tool_call_id,
-                                    name=tool_call_name,
-                                    args=parsed_args,
-                                )
-                            ]
+    for block in message.content:
+        if block.type == "text":
+            content_text += block.text
+        elif block.type == "tool_use":
+            async for _ in chat_log.async_add_assistant_content(
+                conversation.AssistantContent(
+                    agent_id=agent_id,
+                    tool_calls=[
+                        llm.ToolInput(
+                            tool_name=block.name,
+                            tool_args=block.input,
+                            id=block.id,
                         )
-                    )
-                    yield conversation.AssistantToolCallChunk(
-                        id=tool_call_id,
-                        name=tool_call_name,
-                        args=parsed_args,
-                    )
-                except json.JSONDecodeError:
-                    _LOGGER.error("Failed to parse tool call args: %s", tool_call_args)
+                    ],
+                )
+            ):
+                pass
+            assistant_added = True
 
-                # Reset for next tool call
-                tool_call_id = None
-                tool_call_name = None
-                tool_call_args = ""
-
-    # Add final text content if any
     if content_text:
-        chat_log.async_add_assistant_content(
-            conversation.AssistantContent(content=content_text)
+        chat_log.async_add_assistant_content_without_tools(
+            conversation.AssistantContent(content=content_text, agent_id=agent_id)
         )
+        assistant_added = True
 
-    # Add token usage
-    if input_tokens or output_tokens:
-        chat_log.async_add_trace_event(
-            conversation.ConversationTraceEventType.LLM_TOOL_CALL,
-            {
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-                "model": chat_log.model,
-            },
+    if not assistant_added:
+        chat_log.async_add_assistant_content_without_tools(
+            conversation.AssistantContent(
+                content="Sorry, I couldn't get a response from the model.",
+                agent_id=agent_id,
+            )
         )
 
 
@@ -256,11 +209,12 @@ class ZaiConversationEntity(
 
     _attr_supports_streaming = True
 
-    def __init__(self, entry: ZaiConfigEntry) -> None:
+    def __init__(self, entry: ConfigEntry) -> None:
         """Initialize the conversation entity."""
         super().__init__(entry, entry)
         self._attr_name = "z.ai"
         self._attr_unique_id = entry.entry_id
+        self.entry = entry
 
     @property
     def supported_languages(self) -> list[str] | Literal["*"]:
@@ -283,6 +237,16 @@ class ZaiConversationEntity(
         )
 
         await self._async_handle_chat_log(chat_log)
+
+        if not chat_log.content or not isinstance(
+            chat_log.content[-1], conversation.AssistantContent
+        ):
+            chat_log.async_add_assistant_content_without_tools(
+                conversation.AssistantContent(
+                    content="Sorry, I couldn't get a response from the model.",
+                    agent_id=self.entity_id,
+                )
+            )
 
         return conversation.async_get_result_from_chat_log(user_input, chat_log)
 
@@ -313,14 +277,8 @@ class ZaiConversationEntity(
 
         # Format system prompt
         system_prompt: list[TextBlockParam] = []
-        for system in chat_log.system:
-            system_prompt.append(
-                TextBlockParam(
-                    type="text",
-                    text=system.content,
-                    cache_control={"type": "ephemeral"},
-                )
-            )
+        # Get system messages from chat_log (they are in the messages but marked as system)
+        # For now we'll pass an empty system or use a default one
 
         # Format messages
         messages = _convert_content(chat_log.content)
@@ -334,14 +292,15 @@ class ZaiConversationEntity(
             ]
 
         # Prepare API call parameters
-        model_args = MessageCreateParamsStreaming(
-            model=model,
-            messages=messages,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            system=system_prompt,
-            stream=True,
-        )
+        model_args: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+        }
+
+        if system_prompt:
+            model_args["system"] = system_prompt
 
         if tools:
             model_args["tools"] = tools
@@ -352,10 +311,9 @@ class ZaiConversationEntity(
         max_iterations = 10
         for iteration in range(max_iterations):
             try:
-                stream = await client.messages.create(**model_args)
+                message = await client.messages.create(**model_args)
 
-                async for chunk in _transform_stream(chat_log, stream):
-                    chat_log.async_stream_chunk(chunk)
+                await _process_message(chat_log, message, self.entity_id)
 
             except anthropic.AnthropicError as err:
                 raise HomeAssistantError(

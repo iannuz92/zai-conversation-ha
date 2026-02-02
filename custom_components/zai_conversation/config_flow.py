@@ -113,7 +113,7 @@ class ZaiConfigFlow(ConfigFlow, domain=DOMAIN):
     @staticmethod
     def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
         """Get the options flow for this handler."""
-        return ZaiOptionsFlowHandler(config_entry)
+        return ZaiOptionsFlowHandler()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -152,10 +152,6 @@ class ZaiConfigFlow(ConfigFlow, domain=DOMAIN):
 class ZaiOptionsFlowHandler(OptionsFlow):
     """Handle options flow for z.ai Conversation."""
 
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
-
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -171,7 +167,7 @@ class ZaiOptionsFlowHandler(OptionsFlow):
             return self.async_create_entry(title="", data=user_input)
 
         schema_dict: dict[vol.Marker, Any] = {}
-        options = self.config_entry.options
+        options = self.config_entry.options or {}
 
         schema_dict[vol.Optional(CONF_PROMPT, default=options.get(CONF_PROMPT, ""))] = (
             TemplateSelector()
@@ -179,7 +175,7 @@ class ZaiOptionsFlowHandler(OptionsFlow):
         schema_dict[
             vol.Optional(
                 CONF_LLM_HASS_API,
-                default=options.get(CONF_LLM_HASS_API, RECOMMENDED_OPTIONS[CONF_LLM_HASS_API]),
+                default=options.get(CONF_LLM_HASS_API, "assist"),
             )
         ] = SelectSelector(
             SelectSelectorConfig(
@@ -191,7 +187,7 @@ class ZaiOptionsFlowHandler(OptionsFlow):
         schema_dict[
             vol.Optional(
                 CONF_RECOMMENDED,
-                default=options.get(CONF_RECOMMENDED, RECOMMENDED_OPTIONS[CONF_RECOMMENDED]),
+                default=options.get(CONF_RECOMMENDED, True),
             )
         ] = bool
 
@@ -213,7 +209,7 @@ class ZaiOptionsFlowHandler(OptionsFlow):
                 data={CONF_RECOMMENDED: False, **user_input},
             )
 
-        options = self.config_entry.options
+        options = self.config_entry.options or {}
 
         schema = vol.Schema(
             {

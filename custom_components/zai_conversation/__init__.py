@@ -15,12 +15,13 @@ from homeassistant.exceptions import ConfigEntryNotReady
 
 from .const import CONF_BASE_URL, DEFAULT_BASE_URL, DOMAIN
 
-if TYPE_CHECKING:
-    type ZaiConfigEntry = ConfigEntry[anthropic.AsyncAnthropic]
+type ZaiConfigEntry = ConfigEntry[anthropic.AsyncAnthropic]
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [Platform.CONVERSATION]
+
+__all__ = ["ZaiConfigEntry"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ZaiConfigEntry) -> bool:
