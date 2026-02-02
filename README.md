@@ -6,7 +6,7 @@ A custom integration for Home Assistant that adds z.ai's GLM-4 models as convers
 
 ## Features
 
-- 🤖 **GLM-4 Models Support**: Access to glm-4.7, glm-4-flash, glm-4-plus, glm-4-air, and more
+- 🤖 **GLM-4 Models Support**: Access to glm-4.7
 - 💬 **Conversation Agent**: Full integration with Home Assistant's conversation system
 - 🔧 **Function Calling**: Control Home Assistant devices through natural language
 - ⚡ **Fast Responses**: Optimized for quick replies
@@ -70,13 +70,7 @@ After adding the integration, you'll have a conversation agent automatically cre
   - `intent`: Use intent API
 
 #### Advanced Options (disable "Use recommended settings")
-- **Model**: Choose from available GLM-4 models
-  - `glm-4.7`: Recommended default
-  - `glm-4-flash`: Fastest, most cost-effective
-  - `glm-4-plus`: Most capable, best quality
-  - `glm-4-air`: Balanced performance
-  - `glm-4-airx`: Extended context window
-  - `glm-4-long`: Long context support
+- **Model**: `glm-4.7` (only supported model)
 - **Maximum Tokens**: Max response length (1-8000, default: 3000)
 - **Temperature**: Response randomness (0-1, default: 1.0)
 
@@ -112,12 +106,7 @@ confirm the action after completing it.
 
 | Model | Description | Best For |
 |-------|-------------|----------|
-| glm-4.7 | Recommended default | General use, best overall |
-| glm-4-flash | Fastest response, lower cost | Quick queries, simple tasks |
-| glm-4-plus | Highest quality, most capable | Complex reasoning, detailed responses |
-| glm-4-air | Balanced performance | General use, good balance |
-| glm-4-airx | Extended context window | Long conversations, document analysis |
-| glm-4-long | Very long context | Processing large amounts of text |
+| glm-4.7 | Supported model | General use |
 
 ## Troubleshooting
 
