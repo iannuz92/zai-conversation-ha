@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 import logging
+import re
 from typing import Any, Literal
 
 import anthropic
@@ -207,6 +208,45 @@ async def _process_message(
         )
 
 
+# Patterns to detect memory-related user messages (Italian + English)
+_MEMORY_PREFERENCE_PATTERNS = re.compile(
+    r"(?:ricorda(?:ti)?|remember|nota(?:ti)?|note|salva|save|annota|preferisco|i prefer|mi piace|i like|"
+    r"non mi piace|i don'?t like|la mia .+ (?:preferit[ao]|ideale|favorit[ae])|my (?:favorite|preferred|ideal))",
+    re.IGNORECASE,
+)
+
+_MEMORY_NOTE_PATTERNS = re.compile(
+    r"(?:ricordami|remind me|annotati|note to self|da ricordare|don'?t forget|non dimenticare|segna(?:ti)?)",
+    re.IGNORECASE,
+)
+
+
+async def _extract_and_save_memory(
+    memory: AssistantMemory,
+    user_text: str,
+) -> None:
+    """Detect memory-related intents in user text and save to memory.
+
+    This analyzes the user's message for preference/note patterns and
+    automatically persists them to the assistant's memory.
+    """
+    text = user_text.strip()
+    if len(text) < 5:
+        return
+
+    try:
+        if _MEMORY_NOTE_PATTERNS.search(text):
+            # It's a note/reminder - save the full text
+            await memory.add_note(text)
+            _LOGGER.debug("Saved note from user: %s", text[:80])
+        elif _MEMORY_PREFERENCE_PATTERNS.search(text):
+            # It's a preference - save the full text
+            await memory.add_preference(text)
+            _LOGGER.debug("Saved preference from user: %s", text[:80])
+    except Exception:
+        _LOGGER.debug("Failed to extract memory from user input", exc_info=True)
+
+
 class ZaiConversationEntity(
     conversation.ConversationEntity,
     conversation.AbstractConversationAgent,
@@ -242,13 +282,15 @@ class ZaiConversationEntity(
     ) -> conversation.ConversationResult:
         """Handle a conversation message."""
         options = self.entry.options
+        memory_enabled = options.get(CONF_MEMORY_ENABLED, DEFAULT[CONF_MEMORY_ENABLED])
 
-        # Record interaction in memory (safely)
+        # Record interaction and extract memory from user input
         try:
-            if self._memory and options.get(CONF_MEMORY_ENABLED, DEFAULT[CONF_MEMORY_ENABLED]):
+            if self._memory and memory_enabled:
                 await self._memory.record_interaction(user_input.text)
+                await _extract_and_save_memory(self._memory, user_input.text)
         except Exception:
-            _LOGGER.debug("Failed to record interaction in memory", exc_info=True)
+            _LOGGER.debug("Failed to process memory", exc_info=True)
 
         try:
             await chat_log.async_provide_llm_data(

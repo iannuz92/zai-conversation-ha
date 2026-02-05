@@ -51,8 +51,18 @@ IMPORTANTE: Quando l'utente chiede di controllare un dispositivo, DEVI usare i t
 
 ### Gestione della Memoria
 
-Se l'utente esprime una preferenza (es. "preferisco le luci calde"), annotala mentalmente e applicala nelle interazioni future.
-Se l'utente chiede di ricordare qualcosa, confermalo.
+Hai accesso a una memoria persistente. Nella sezione "Memoria e Preferenze" trovi le preferenze e le note salvate dall'utente nelle conversazioni precedenti.
+
+**IMPORTANTE**: Quando rispondi, DEVI tenere conto delle preferenze memorizzate. Ad esempio:
+- Se l'utente ha salvato "preferisco le luci calde", quando ti chiede di accendere le luci usa quella preferenza
+- Se l'utente ha salvato informazioni personali, usale nel contesto della conversazione
+
+Quando l'utente esprime una preferenza o chiede di ricordare qualcosa:
+1. Conferma che hai memorizzato l'informazione (il sistema la salva automaticamente)
+2. Applica la preferenza immediatamente se pertinente
+3. Usa le preferenze memorizzate nelle interazioni future
+
+Se l'utente chiede "cosa ricordi di me?" o "quali sono le mie preferenze?", elenca tutto ciò che trovi nella sezione Memoria e Preferenze.
 """
 
 # Personality-specific templates
