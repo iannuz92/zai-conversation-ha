@@ -1,187 +1,231 @@
-# z.ai Conversation Integration for Home Assistant
+# z.ai Conversation for Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
+[![GitHub release](https://img.shields.io/github/v/release/iannuz92/zai-conversation-ha)](https://github.com/iannuz92/zai-conversation-ha/releases)
 
-A custom integration for Home Assistant that adds z.ai's GLM-4.7 models as conversation agents. This integration is based on the official Anthropic integration pattern and supports function calling for Home Assistant device control.
+Integrazione custom per Home Assistant che trasforma i modelli GLM-4 di z.ai in un vero **assistente personale domotico**. Basata sul pattern dell'integrazione ufficiale Anthropic, con supporto completo al function calling, personalità configurabile, memoria persistente e contesto automatico dei dispositivi.
 
-## Features
+## ✨ Funzionalità
 
-- **GLM-4 Models Support**: Access to glm-4.7
-- **Conversation Agent**: Full integration with Home Assistant's conversation system
-- **Function Calling**: Control Home Assistant devices through natural language
-- **Fast Responses**: Optimized for quick replies
-- **Customizable**: Configure model, temperature, max tokens, and prompts
-- **Secure**: API key stored securely in Home Assistant
+### Core
+- 🤖 **Modelli GLM-4** — Supporto per glm-4.7, glm-4-flash, glm-4-plus, glm-4-air, glm-4-airx, glm-4-long
+- 🏠 **Controllo dispositivi** — Comandi vocali/testuali con function calling nativo HA
+- 🔧 **Conversation Agent** — Integrazione completa con il sistema Assist di Home Assistant
 
-## Installation
+### Assistente Personale
+- 🧠 **Memoria persistente** — Ricorda le tue preferenze, note e contesto tra le sessioni
+- 🎭 **Personalità configurabile** — Scegli tra Formale, Amichevole o Conciso
+- 📍 **Contesto dispositivi** — Il LLM riceve automaticamente lo stato reale di luci, sensori, termostati, tapparelle raggruppati per area
+- 🎯 **Filtro per area** — Limita il contesto solo alle aree che ti interessano
+- 📝 **Prompt personalizzabile** — Istruzioni extra per personalizzare il comportamento
 
-### HACS (Recommended)
+## 📦 Installazione
 
-1. Open HACS in your HomeAssistant instance
-2. Click on "Integrations"
-3. Click the three dots in the top right corner
-4. Select "Custom repositories"
-5. Add this repository URL: `https://github.com/iannuz92/zai-conversation-ha`
-6. Select category: "Integration"
-7. Click "Add"
-8. Find "z.ai Conversation" in the integration list and install it
-9. Restart Home Assistant
+### HACS (Consigliato)
 
-### Manual Installation
+1. Apri **HACS** in Home Assistant
+2. Vai su **Integrazioni**
+3. Clicca i tre puntini in alto a destra → **Repository personalizzati**
+4. Aggiungi: `https://github.com/iannuz92/zai-conversation-ha`
+5. Categoria: **Integrazione**
+6. Clicca **Aggiungi**
+7. Cerca "z.ai Conversation" e installala
+8. **Riavvia Home Assistant**
 
-1. Copy the `custom_components/zai_conversation` folder to your Home Assistant's `custom_components` directory
-2. Restart Home Assistant
+### Installazione Manuale
 
-## Configuration
+1. Copia la cartella `custom_components/zai_conversation` nella directory `custom_components` di Home Assistant
+2. Riavvia Home Assistant
 
-### Getting Your z.ai API Key
+## ⚙️ Configurazione
 
-1. Visit [z.ai](https://z.ai) and sign up for an account
-2. Navigate to your API settings
-3. Generate a new API key
-4. Copy the API key (you'll need it during setup)
+### Ottenere la API Key
 
-### Setting Up the Integration
+1. Vai su [z.ai](https://z.ai) e crea un account
+2. Vai nelle impostazioni API
+3. Genera una nuova API key
 
-1. Go to **Settings** → **Devices & Services**
-2. Click **+ Add Integration**
-3. Search for "z.ai Conversation"
-4. Enter your configuration:
-   - **API Key**: Your z.ai API key (required)
-   - **Base URL**: Custom base URL (default: `https://api.z.ai/api/anthropic`)
-5. Click **Submit**
+### Setup dell'Integrazione
 
-The integration will validate your credentials by making a test connection to z.ai.
+1. **Impostazioni** → **Dispositivi e Servizi** → **+ Aggiungi Integrazione**
+2. Cerca **"z.ai Conversation"**
+3. Inserisci:
+   - **API Key**: la tua chiave API z.ai
+   - **Base URL**: `https://api.z.ai/api/anthropic` (default)
+4. Clicca **Invia** — verrà effettuato un test di connessione
 
-### Configuring the Conversation Agent
+### Opzioni di Configurazione
 
-After adding the integration, you'll have a conversation agent automatically created. You can configure it:
+Dopo l'installazione, clicca **Configura** sull'integrazione:
 
-1. Go to the z.ai integration page
-2. Click **Configure** on the integration
-3. Configure options:
+#### Opzioni Base
 
-#### Basic Options
-- **Name**: Custom name for your agent
-- **Prompt Template**: Custom system prompt (optional)
-- **Control Home Assistant**: 
-  - `none`: No device control
-  - `assist`: Use Home Assistant's assist API (recommended)
-  - `intent`: Use intent API
+| Opzione | Descrizione | Default |
+|---------|-------------|---------|
+| **Personalità** | Stile delle risposte (Formale / Amichevole / Conciso) | Amichevole |
+| **Memoria** | Abilita memoria persistente tra le sessioni | ✅ Attiva |
+| **Prompt ottimizzato** | Usa il prompt avanzato con contesto dispositivi | ✅ Attivo |
+| **Istruzioni extra** | Template aggiuntivo per personalizzare il comportamento | — |
+| **Controllo HA** | API per il controllo dispositivi (`assist` / `intent` / `none`) | `assist` |
+| **Impostazioni consigliate** | Usa parametri ottimizzati per il modello | ✅ Attivo |
 
-#### Advanced Options (disable "Use recommended settings")
-- **Model**: `glm-4.7` (only supported model)
-- **Maximum Tokens**: Max response length (1-8000, default: 3000)
-- **Temperature**: Response randomness (0-1, default: 1.0)
+#### Opzioni Avanzate (disabilita "Impostazioni consigliate")
 
-## Usage
+| Opzione | Descrizione | Default | Range |
+|---------|-------------|---------|-------|
+| **Modello** | Modello GLM-4 da usare | glm-4.7 | Vedi tabella |
+| **Token massimi** | Lunghezza massima risposta | 3000 | 1–8000 |
+| **Temperatura** | Creatività delle risposte | 0.7 | 0–1 |
+| **Filtro aree** | Limita il contesto ai dispositivi di aree specifiche | Tutte | Multi-select |
 
-### In Home Assistant Assist
+## 🚀 Utilizzo
 
-1. Open Home Assistant's Voice Assistant
-2. Select your z.ai conversation agent from the dropdown
-3. Start chatting!
+### Comandi Naturali
 
-### Controlling Devices
-
-When "Control Home Assistant" is enabled, you can control your devices naturally:
+Con "Controllo Home Assistant" impostato su `assist`:
 
 ```
-"Turn on the living room lights"
-"Set the thermostat to 72 degrees"
-"What's the temperature in the bedroom?"
+"Accendi le luci del soggiorno"
+"Imposta il termostato a 22 gradi"
+"Che temperatura c'è in camera da letto?"
+"Chiudi tutte le tapparelle"
+"Metti la luce della cucina al 50%"
+"Spegni tutto in camera"
 ```
 
-### Custom Prompts
+### Memoria dell'Assistente
 
-You can customize the system prompt to change the agent's behavior:
+L'assistente ricorda le tue preferenze tra una sessione e l'altra:
 
-```yaml
-You are a helpful assistant for home automation.
-Be concise and friendly. When controlling devices,
-confirm the action after completing it.
+```
+"Ricorda che preferisco le luci calde la sera"
+"La mia temperatura ideale è 21 gradi"
+"Annota che domani devo chiamare l'idraulico"
 ```
 
-## Supported Models
+### Personalità
 
-| Model | Description | Best For |
-|-------|-------------|----------|
-| glm-4.7 | Supported model | General use |
+| Personalità | Stile |
+|-------------|-------|
+| **Formale** | Professionale, preciso, usa il "Lei" |
+| **Amichevole** | Colloquiale, con emoji, usa il "tu" |
+| **Conciso** | Risposte minimali, solo l'essenziale |
 
-## Troubleshooting
+## 📋 Modelli Supportati
 
-### "Cannot connect" error
+| Modello | Descrizione | Consigliato per |
+|---------|-------------|-----------------|
+| `glm-4.7` | Modello principale, bilanciato | ⭐ Uso generale |
+| `glm-4-flash` | Veloce, risposte rapide | Automazioni veloci |
+| `glm-4-plus` | Più potente | Conversazioni complesse |
+| `glm-4-air` | Leggero | Risposte semplici |
+| `glm-4-airx` | Air ottimizzato | Performance |
+| `glm-4-long` | Contesto esteso | Conversazioni lunghe |
 
-- Verify your API key is correct
-- Check your internet connection
-- Ensure the base URL is correct
-- Check Home Assistant logs for detailed error messages
+## 🏗️ Architettura
 
-### "Authentication error"
+```
+custom_components/zai_conversation/
+├── __init__.py            # Entry point, setup client e memoria
+├── conversation.py        # Entity principale, gestione chat e API
+├── config_flow.py         # Flusso di configurazione UI
+├── const.py               # Costanti e default
+├── entity.py              # Entity base
+├── device_manager.py      # Builder contesto dispositivi per area
+├── assistant_memory.py    # Memoria persistente JSON
+├── prompt_templates.py    # Template personalità e istruzioni
+├── manifest.json
+├── strings.json
+└── translations/
+    └── en.json
+```
 
-- Your API key may be invalid or expired
-- Generate a new API key from z.ai
-- Reconfigure the integration with the new key
+### Come Funziona
 
-### Agent not responding
+1. **`conversation.py`** riceve il messaggio dall'utente via Assist
+2. **`device_manager.py`** raccoglie lo stato di tutti i dispositivi raggruppati per area
+3. **`prompt_templates.py`** costruisce il system prompt con personalità + contesto dispositivi + memoria
+4. **`assistant_memory.py`** inietta le preferenze e note memorizzate
+5. Il prompt completo viene inviato insieme alle istruzioni di Home Assistant (tool calling) all'API z.ai
+6. La risposta viene processata: se contiene tool calls, vengono eseguite e il risultato reinviato al modello fino a 10 iterazioni
 
-- Check Home Assistant logs for errors
-- Verify the conversation agent is enabled
-- Try adjusting max tokens or temperature settings
-- Ensure z.ai service is operational
+## 🔧 Troubleshooting
 
-### Tool calling not working
+### Errore "Cannot connect"
+- Verifica che la API key sia corretta
+- Controlla la connessione internet
+- Verifica il Base URL
+- Controlla i log di HA: **Impostazioni** → **Sistema** → **Log**
 
-- Make sure "Control Home Assistant" is set to "assist" or "intent"
-- Check that your devices are properly configured in Home Assistant
-- Review Home Assistant logs for permission issues
+### Errore "Authentication error"
+- La API key potrebbe essere scaduta
+- Genera una nuova key da z.ai
+- Riconfigura l'integrazione
 
-## Advanced Configuration
+### L'agente non risponde
+- Controlla i log di HA per errori dettagliati
+- Verifica che l'agente conversazione sia abilitato in Assist
+- Prova a ridurre i token massimi
+- Verifica che il servizio z.ai sia operativo
 
-### Custom Base URL
+### Il controllo dispositivi non funziona
+- Assicurati che "Controllo Home Assistant" sia impostato su `assist`
+- Verifica che i dispositivi siano correttamente configurati in HA
+- Controlla i log per problemi di permessi
+- Prova a disabilitare il filtro aree per includere tutti i dispositivi
 
-If you're using a proxy or custom endpoint:
+### L'assistente non ricorda le preferenze
+- Verifica che la memoria sia abilitata nelle opzioni
+- La memoria viene salvata in `/.storage/zai_memory_<entry_id>.json`
+- Riavvia HA se la memoria non si carica
 
-1. During setup, enter your custom base URL
-2. The URL should be compatible with Anthropic's API format
-3. Example: `https://your-proxy.com/api/anthropic`
+## 📋 Requisiti
 
-### Multiple Conversation Agents
+- **Home Assistant** 2024.1.0 o successivo
+- **Python** 3.12+ (fornito dall'installazione HA)
+- **Pacchetto** `anthropic` v0.40.0 (installato automaticamente)
+- **Account** [z.ai](https://z.ai) con API key attiva
 
-You can create multiple conversation agents with different configurations by adding multiple z.ai integrations, each with its own options.
+## 🤝 Supporto
 
-## Development
+- 🐛 [Apri un issue](https://github.com/iannuz92/zai-conversation-ha/issues) per bug o richieste
+- 📋 Includi i log di Home Assistant quando segnali problemi
+- 💡 Le pull request sono benvenute
 
-This integration is built following Home Assistant's development guidelines and uses the Anthropic SDK for API communication.
+## 📜 Crediti
 
-### Requirements
+Basata sull'integrazione ufficiale [Anthropic](https://github.com/home-assistant/core/tree/dev/homeassistant/components/anthropic) di Home Assistant core, adattata per l'API z.ai con funzionalità avanzate di assistente personale.
 
-- Home Assistant 2024.1.0 or later
-- Python version provided by your Home Assistant installation
-- `anthropic` Python package (v0.40.0)
+## 📄 Licenza
 
-## Support
+MIT License — Vedi il file [LICENSE](LICENSE) per i dettagli.
 
-For issues, feature requests, or questions:
-
-- Open an issue on [GitHub](https://github.com/iannuz92/zai-conversation-ha/issues)
-- Check existing issues for solutions
-- Include Home Assistant logs when reporting bugs
-
-## Credits
-
-This integration is based on the official [Anthropic integration](https://github.com/home-assistant/core/tree/dev/homeassistant/components/anthropic) from Home Assistant core, adapted for z.ai's API.
-
-## License
-
-MIT License - See LICENSE file for details
+---
 
 ## Changelog
 
-### Version 1.0.0 (Initial Release)
+### v1.0.2
 
-- Initial release with z.ai GLM-4 support
-- Conversation agent for Assist
-- Function calling for device control
-- Configurable models and parameters
-- HACS compatibility
+- 🐛 Fix critico: accesso al system prompt tramite `chat_log.content[0]` (SystemContent)
+- 🐛 Fix: messaggi API ora escludono correttamente il SystemContent (`content[1:]`)
+- 🐛 Fix: gestione attributi tool_call compatibile con `llm.ToolInput`
+- 🐛 Fix: aggiunto handling `ConverseError` su `async_provide_llm_data`
+- 🐛 Fix: rimossa ereditarietà `ZaiBaseLLMEntity` incompatibile
+- 🐛 Fix: rimosso `isinstance()` con TypeAliasType (crash su Python 3.12+)
+- 🧹 Pulizia import inutilizzati in tutti i moduli
+
+### v1.0.1
+
+- 🐛 Fix errori di indentazione in `config_flow.py` e `conversation.py`
+- 🐛 Fix gestione errori robusta con fallback
+
+### v1.0.0
+
+- 🎉 Release iniziale
+- 🤖 Supporto modelli GLM-4 via z.ai
+- 🏠 Conversation agent con function calling
+- 🧠 Memoria persistente dell'assistente
+- 🎭 Personalità configurabili (Formale/Amichevole/Conciso)
+- 📍 Contesto automatico dispositivi per area
+- ⚙️ Configurazione completa da UI
+- 📦 Compatibilità HACS
