@@ -241,9 +241,12 @@ class ZaiConversationEntity(
         """Handle a conversation message."""
         options = self.entry.options
 
-        # Record interaction in memory
-        if self._memory and options.get(CONF_MEMORY_ENABLED, DEFAULT[CONF_MEMORY_ENABLED]):
-            await self._memory.record_interaction(user_input.text)
+        # Record interaction in memory (safely)
+        try:
+            if self._memory and options.get(CONF_MEMORY_ENABLED, DEFAULT[CONF_MEMORY_ENABLED]):
+                await self._memory.record_interaction(user_input.text)
+        except Exception:
+            _LOGGER.debug("Failed to record interaction in memory", exc_info=True)
 
         await chat_log.async_provide_llm_data(
             user_input.as_llm_context(DOMAIN),
@@ -291,67 +294,92 @@ class ZaiConversationEntity(
             else DEFAULT[CONF_TEMPERATURE]
         )
 
-        # Build custom system prompt if enabled
-        use_custom_prompt = options.get(CONF_USE_CUSTOM_PROMPT, DEFAULT[CONF_USE_CUSTOM_PROMPT])
+        # Build system prompt
+        system_prompt: list[TextBlockParam] = []
 
-        if use_custom_prompt:
-            # Get personality
-            personality = options.get(CONF_PERSONALITY, DEFAULT[CONF_PERSONALITY])
+        try:
+            use_custom_prompt = options.get(CONF_USE_CUSTOM_PROMPT, DEFAULT[CONF_USE_CUSTOM_PROMPT])
 
-            # Build device context
-            area_filter = options.get(CONF_AREA_FILTER, DEFAULT[CONF_AREA_FILTER])
-            devices_context = await self._device_builder.build_context(
-                area_filter=area_filter if area_filter else None,
-            )
+            if use_custom_prompt:
+                # Get personality
+                personality = options.get(CONF_PERSONALITY, DEFAULT[CONF_PERSONALITY])
 
-            # Build memory context
-            memory_context = ""
-            if self._memory and options.get(CONF_MEMORY_ENABLED, DEFAULT[CONF_MEMORY_ENABLED]):
-                await self._memory.async_load()
-                memory_context = self._memory.build_memory_prompt()
-
-            # Get extra instructions from user prompt template
-            extra_instructions = options.get(CONF_PROMPT, "")
-
-            # Build the complete prompt
-            custom_prompt = build_system_prompt(
-                personality=personality,
-                devices_context=devices_context,
-                memory_context=memory_context,
-                extra_instructions=extra_instructions,
-            )
-
-            # Create system prompt blocks with our custom prompt
-            system_prompt: list[TextBlockParam] = [
-                TextBlockParam(
-                    type="text",
-                    text=custom_prompt,
-                    cache_control={"type": "ephemeral"},
+                # Build device context
+                area_filter = options.get(CONF_AREA_FILTER, DEFAULT[CONF_AREA_FILTER])
+                devices_context = await self._device_builder.build_context(
+                    area_filter=area_filter if area_filter else None,
                 )
-            ]
 
-            # Also include any HA-generated system content (for tool instructions)
-            for system in chat_log.system:
-                # Skip if it looks like the default HA prompt (we're replacing it)
-                if "assist" not in system.content.lower()[:100]:
-                    system_prompt.append(
-                        TextBlockParam(
-                            type="text",
-                            text=system.content,
-                            cache_control={"type": "ephemeral"},
-                        )
-                    )
-        else:
-            # Use default HA system prompts
-            system_prompt: list[TextBlockParam] = []
-            for system in chat_log.system:
-                system_prompt.append(
+                # Build memory context
+                memory_context = ""
+                try:
+                    if self._memory and options.get(CONF_MEMORY_ENABLED, DEFAULT[CONF_MEMORY_ENABLED]):
+                        await self._memory.async_load()
+                        memory_context = self._memory.build_memory_prompt()
+                except Exception:
+                    _LOGGER.debug("Failed to build memory context", exc_info=True)
+
+                # Get extra instructions from user prompt template
+                extra_instructions = options.get(CONF_PROMPT, "")
+
+                # Build the complete prompt
+                custom_prompt = build_system_prompt(
+                    personality=personality,
+                    devices_context=devices_context,
+                    memory_context=memory_context,
+                    extra_instructions=extra_instructions,
+                )
+
+                # Create system prompt blocks with our custom prompt
+                system_prompt = [
                     TextBlockParam(
                         type="text",
-                        text=system.content,
+                        text=custom_prompt,
                         cache_control={"type": "ephemeral"},
                     )
-                )
+                ]
+
+                # Also include any HA-generated system content (for tool instructions)
+                if hasattr(chat_log, 'system') and chat_log.system:
+                    for system in chat_log.system:
+                        sys_content = system.content if hasattr(system, 'content') else str(system)
+                        if "assist" not in sys_content.lower()[:100]:
+                            system_prompt.append(
+                                TextBlockParam(
+                                    type="text",
+                                    text=sys_content,
+                                    cache_control={"type": "ephemeral"},
+                                )
+                            )
+            else:
+                # Use default HA system prompts
+                if hasattr(chat_log, 'system') and chat_log.system:
+                    for system in chat_log.system:
+                        sys_content = system.content if hasattr(system, 'content') else str(system)
+                        system_prompt.append(
+                            TextBlockParam(
+                                type="text",
+                                text=sys_content,
+                                cache_control={"type": "ephemeral"},
+                            )
+                        )
+        except Exception:
+            _LOGGER.warning("Failed to build custom system prompt, using fallback", exc_info=True)
+            # Fallback: try to use HA default system prompts
+            system_prompt = []
+            try:
+                if hasattr(chat_log, 'system') and chat_log.system:
+                    for system in chat_log.system:
+                        sys_content = system.content if hasattr(system, 'content') else str(system)
+                        system_prompt.append(
+                            TextBlockParam(
+                                type="text",
+                                text=sys_content,
+                                cache_control={"type": "ephemeral"},
+                            )
+                        )
+            except Exception:
+                _LOGGER.warning("Failed to get any system prompt", exc_info=True)
 
         # Format messages
         messages = _convert_content(chat_log.content)
