@@ -13,7 +13,8 @@ from homeassistant.const import CONF_API_KEY, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
-from .const import CONF_BASE_URL, DEFAULT_BASE_URL, DOMAIN
+from .assistant_memory import AssistantMemory
+from .const import CONF_BASE_URL, DEFAULT_BASE_URL, DOMAIN, MEMORY_KEY
 
 type ZaiConfigEntry = ConfigEntry[anthropic.AsyncAnthropic]
 
@@ -44,6 +45,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ZaiConfigEntry) -> bool:
 
     entry.runtime_data = client
 
+    # Initialize domain data storage
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+
+    # Initialize memory for this entry
+    memory = AssistantMemory(hass, entry.entry_id)
+    await memory.async_load()
+
+    hass.data[DOMAIN][entry.entry_id] = {
+        MEMORY_KEY: memory,
+    }
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
@@ -51,13 +64,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ZaiConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+    if unload_ok:
+        # Save memory before unloading
+        if DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
+            memory = hass.data[DOMAIN][entry.entry_id].get(MEMORY_KEY)
+            if memory:
+                await memory.async_save()
+            hass.data[DOMAIN].pop(entry.entry_id)
+
+        # Clean up domain data if empty
+        if DOMAIN in hass.data and not hass.data[DOMAIN]:
+            hass.data.pop(DOMAIN)
+
+    return unload_ok
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Handle removal of an entry."""
-    # Cleanup subentries if any
-    pass
+    # Delete memory storage file
+    if DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
+        memory = hass.data[DOMAIN][entry.entry_id].get(MEMORY_KEY)
+        if memory:
+            await memory.async_delete_storage()
 
 
 async def async_remove_config_entry_device(

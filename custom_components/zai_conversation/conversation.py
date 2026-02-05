@@ -26,18 +26,26 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import ulid
 
 from . import ZaiConfigEntry
+from .assistant_memory import AssistantMemory
 from .const import (
+    CONF_AREA_FILTER,
     CONF_CHAT_MODEL,
     CONF_LLM_HASS_API,
     CONF_MAX_TOKENS,
+    CONF_MEMORY_ENABLED,
+    CONF_PERSONALITY,
     CONF_PROMPT,
     CONF_RECOMMENDED,
     CONF_TEMPERATURE,
+    CONF_USE_CUSTOM_PROMPT,
     DEFAULT,
     DOMAIN,
+    MEMORY_KEY,
     SUBENTRY_CONVERSATION,
 )
+from .device_manager import DeviceContextBuilder
 from .entity import ZaiBaseLLMEntity
+from .prompt_templates import PERSONALITY_FRIENDLY, build_system_prompt
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,7 +56,14 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up conversation entities."""
-    async_add_entities([ZaiConversationEntity(config_entry)])
+    assert isinstance(config_entry, ZaiConfigEntry)
+
+    # Get or create memory instance
+    memory = None
+    if hass.data.get(DOMAIN) and hass.data[DOMAIN].get(config_entry.entry_id):
+        memory = hass.data[DOMAIN][config_entry.entry_id].get(MEMORY_KEY)
+
+    async_add_entities([ZaiConversationEntity(config_entry, hass, memory)])
 
 
 def _format_tool(
@@ -148,15 +163,6 @@ def _convert_content(
     return messages
 
 
-@dataclass(slots=True)
-class CitationDetails:
-    """Citation tracking."""
-
-    index: int = 0
-    length: int = 0
-    citations: list[dict] = field(default_factory=list)
-
-
 async def _process_message(
     chat_log: conversation.ChatLog,
     message: Message,
@@ -209,12 +215,20 @@ class ZaiConversationEntity(
 
     _attr_supports_streaming = True
 
-    def __init__(self, entry: ConfigEntry) -> None:
+    def __init__(
+        self,
+        entry: ZaiConfigEntry,
+        hass: HomeAssistant,
+        memory: AssistantMemory | None = None,
+    ) -> None:
         """Initialize the conversation entity."""
         super().__init__(entry, entry)
         self._attr_name = "z.ai"
         self._attr_unique_id = entry.entry_id
         self.entry = entry
+        self._hass = hass
+        self._memory = memory
+        self._device_builder = DeviceContextBuilder(hass)
 
     @property
     def supported_languages(self) -> list[str] | Literal["*"]:
@@ -228,6 +242,10 @@ class ZaiConversationEntity(
     ) -> conversation.ConversationResult:
         """Handle a conversation message."""
         options = self.entry.options
+
+        # Record interaction in memory
+        if self._memory and options.get(CONF_MEMORY_ENABLED, DEFAULT[CONF_MEMORY_ENABLED]):
+            await self._memory.record_interaction(user_input.text)
 
         await chat_log.async_provide_llm_data(
             user_input.as_llm_context(DOMAIN),
@@ -275,10 +293,67 @@ class ZaiConversationEntity(
             else DEFAULT[CONF_TEMPERATURE]
         )
 
-        # Format system prompt
-        system_prompt: list[TextBlockParam] = []
-        # Get system messages from chat_log (they are in the messages but marked as system)
-        # For now we'll pass an empty system or use a default one
+        # Build custom system prompt if enabled
+        use_custom_prompt = options.get(CONF_USE_CUSTOM_PROMPT, DEFAULT[CONF_USE_CUSTOM_PROMPT])
+
+        if use_custom_prompt:
+            # Get personality
+            personality = options.get(CONF_PERSONALITY, DEFAULT[CONF_PERSONALITY])
+
+            # Build device context
+            area_filter = options.get(CONF_AREA_FILTER, DEFAULT[CONF_AREA_FILTER])
+            devices_context = await self._device_builder.build_context(
+                area_filter=area_filter if area_filter else None,
+            )
+
+            # Build memory context
+            memory_context = ""
+            if self._memory and options.get(CONF_MEMORY_ENABLED, DEFAULT[CONF_MEMORY_ENABLED]):
+                await self._memory.async_load()
+                memory_context = self._memory.build_memory_prompt()
+
+            # Get extra instructions from user prompt template
+            extra_instructions = options.get(CONF_PROMPT, "")
+
+            # Build the complete prompt
+            custom_prompt = build_system_prompt(
+                personality=personality,
+                devices_context=devices_context,
+                memory_context=memory_context,
+                extra_instructions=extra_instructions,
+            )
+
+            # Create system prompt blocks with our custom prompt
+            system_prompt: list[TextBlockParam] = [
+                TextBlockParam(
+                    type="text",
+                    text=custom_prompt,
+                    cache_control={"type": "ephemeral"},
+                )
+            ]
+
+            # Also include any HA-generated system content (for tool instructions)
+            for system in chat_log.system:
+                # Skip if it looks like the default HA prompt (we're replacing it)
+                if "assist" not in system.content.lower()[:100]:
+                    system_prompt.append(
+                        TextBlockParam(
+                            type="text",
+                            text=system.content,
+                            cache_control={"type": "ephemeral"},
+                        )
+                    )
+        else:
+            # Use default HA system prompts
+            system_prompt: list[TextBlockParam] = []
+            for system in chat_log.system:
+                system_prompt.append(
+                    TextBlockParam(
+                        type="text",
+                        text=system.content,
+                        cache_control={"type": "ephemeral"},
+                    )
+                )
 
         # Format messages
         messages = _convert_content(chat_log.content)
@@ -309,6 +384,7 @@ class ZaiConversationEntity(
 
         # Tool call iteration
         max_iterations = 10
+        iteration = 0
         for iteration in range(max_iterations):
             try:
                 message = await client.messages.create(**model_args)

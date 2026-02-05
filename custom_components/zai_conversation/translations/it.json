@@ -1,0 +1,113 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connetti a z.ai",
+        "description": "Inserisci le credenziali API di z.ai",
+        "data": {
+          "api_key": "Chiave API",
+          "base_url": "URL Base"
+        }
+      }
+    },
+    "error": {
+      "authentication_error": "Chiave API non valida",
+      "cannot_connect": "Impossibile connettersi a z.ai",
+      "timeout_connect": "Timeout connessione",
+      "unknown": "Errore sconosciuto"
+    },
+    "abort": {
+      "already_configured": "z.ai è già configurato"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configura Agente Conversazione z.ai",
+        "description": "Configura il tuo agente di conversazione z.ai",
+        "data": {
+          "personality": "Personalità",
+          "memory_enabled": "Abilita Memoria",
+          "use_custom_prompt": "Usa Prompt Ottimizzato",
+          "prompt": "Istruzioni Aggiuntive",
+          "llm_hass_api": "Controllo Home Assistant",
+          "recommended": "Usa impostazioni consigliate"
+        },
+        "data_description": {
+          "personality": "Scegli lo stile comunicativo dell'assistente",
+          "memory_enabled": "Ricorda preferenze e note dell'utente tra le sessioni",
+          "use_custom_prompt": "Usa prompt ottimizzato con lista dispositivi e istruzioni tool",
+          "prompt": "Istruzioni personalizzate aggiuntive (opzionale)",
+          "llm_hass_api": "Permetti all'integrazione di controllare Home Assistant"
+        }
+      },
+      "advanced": {
+        "title": "Configurazione Avanzata",
+        "description": "Configura opzioni avanzate",
+        "data": {
+          "chat_model": "Modello",
+          "max_tokens": "Token Massimi",
+          "temperature": "Temperatura",
+          "area_filter": "Limita alle Aree"
+        },
+        "data_description": {
+          "chat_model": "Il modello GLM da usare per la conversazione",
+          "max_tokens": "Numero massimo di token da generare",
+          "temperature": "Temperatura di campionamento (0-1). Più basso = più consistente",
+          "area_filter": "Includi solo dispositivi da queste aree (vuoto = tutte)"
+        }
+      }
+    }
+  },
+  "selector": {
+    "personality": {
+      "options": {
+        "formal": "Formale",
+        "friendly": "Amichevole",
+        "concise": "Conciso"
+      }
+    }
+  },
+  "subentry": {
+    "conversation": {
+      "step": {
+        "init": {
+          "title": "Configura Agente Conversazione z.ai",
+          "description": "Configura il tuo agente di conversazione z.ai",
+          "data": {
+            "name": "Nome",
+            "personality": "Personalità",
+            "memory_enabled": "Abilita Memoria",
+            "use_custom_prompt": "Usa Prompt Ottimizzato",
+            "prompt": "Istruzioni Aggiuntive",
+            "llm_hass_api": "Controllo Home Assistant",
+            "recommended": "Usa impostazioni consigliate"
+          },
+          "data_description": {
+            "personality": "Scegli lo stile comunicativo dell'assistente",
+            "memory_enabled": "Ricorda preferenze e note dell'utente tra le sessioni",
+            "use_custom_prompt": "Usa prompt ottimizzato con lista dispositivi e istruzioni tool",
+            "prompt": "Istruzioni personalizzate aggiuntive (opzionale)",
+            "llm_hass_api": "Permetti all'integrazione di controllare Home Assistant"
+          }
+        },
+        "advanced": {
+          "title": "Configurazione Avanzata",
+          "description": "Configura opzioni avanzate",
+          "data": {
+            "chat_model": "Modello",
+            "max_tokens": "Token Massimi",
+            "temperature": "Temperatura",
+            "area_filter": "Limita alle Aree"
+          },
+          "data_description": {
+            "chat_model": "Il modello GLM da usare per la conversazione",
+            "max_tokens": "Numero massimo di token da generare",
+            "temperature": "Temperatura di campionamento (0-1). Più basso = più consistente",
+            "area_filter": "Includi solo dispositivi da queste aree (vuoto = tutte)"
+          }
+        }
+      }
+    }
+  }
+}

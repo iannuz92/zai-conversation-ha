@@ -19,7 +19,9 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import CONF_API_KEY, CONF_NAME
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -33,18 +35,26 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
+    CONF_AREA_FILTER,
     CONF_BASE_URL,
     CONF_CHAT_MODEL,
     CONF_LLM_HASS_API,
     CONF_MAX_TOKENS,
+    CONF_MEMORY_ENABLED,
+    CONF_PERSONALITY,
     CONF_PROMPT,
     CONF_RECOMMENDED,
     CONF_TEMPERATURE,
+    CONF_USE_CUSTOM_PROMPT,
     DEFAULT,
     DEFAULT_BASE_URL,
     DEFAULT_CONVERSATION_NAME,
     DOMAIN,
     MODELS,
+    PERSONALITY_CONCISE,
+    PERSONALITY_FORMAL,
+    PERSONALITY_FRIENDLY,
+    PERSONALITY_OPTIONS,
     SUBENTRY_CONVERSATION,
 )
 
@@ -64,6 +74,9 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 RECOMMENDED_OPTIONS = {
     CONF_LLM_HASS_API: "assist",
     CONF_RECOMMENDED: True,
+    CONF_PERSONALITY: DEFAULT[CONF_PERSONALITY],
+    CONF_MEMORY_ENABLED: DEFAULT[CONF_MEMORY_ENABLED],
+    CONF_USE_CUSTOM_PROMPT: DEFAULT[CONF_USE_CUSTOM_PROMPT],
 }
 
 
@@ -169,9 +182,46 @@ class ZaiOptionsFlowHandler(OptionsFlow):
         schema_dict: dict[vol.Marker, Any] = {}
         options = self.config_entry.options or {}
 
+        # Personality selector
+        schema_dict[
+            vol.Optional(
+                CONF_PERSONALITY,
+                default=options.get(CONF_PERSONALITY, DEFAULT[CONF_PERSONALITY]),
+            )
+        ] = SelectSelector(
+            SelectSelectorConfig(
+                mode=SelectSelectorMode.DROPDOWN,
+                options=[
+                    {"value": PERSONALITY_FORMAL, "label": "Formale"},
+                    {"value": PERSONALITY_FRIENDLY, "label": "Amichevole"},
+                    {"value": PERSONALITY_CONCISE, "label": "Conciso"},
+                ],
+                translation_key=CONF_PERSONALITY,
+            )
+        )
+
+        # Memory toggle
+        schema_dict[
+            vol.Optional(
+                CONF_MEMORY_ENABLED,
+                default=options.get(CONF_MEMORY_ENABLED, DEFAULT[CONF_MEMORY_ENABLED]),
+            )
+        ] = BooleanSelector()
+
+        # Use custom prompt toggle
+        schema_dict[
+            vol.Optional(
+                CONF_USE_CUSTOM_PROMPT,
+                default=options.get(CONF_USE_CUSTOM_PROMPT, DEFAULT[CONF_USE_CUSTOM_PROMPT]),
+            )
+        ] = BooleanSelector()
+
+        # Custom prompt template (only shown if use_custom_prompt is True, but always available)
         schema_dict[vol.Optional(CONF_PROMPT, default=options.get(CONF_PROMPT, ""))] = (
             TemplateSelector()
         )
+
+        # LLM API selector
         schema_dict[
             vol.Optional(
                 CONF_LLM_HASS_API,
@@ -189,11 +239,13 @@ class ZaiOptionsFlowHandler(OptionsFlow):
                 CONF_RECOMMENDED,
                 default=options.get(CONF_RECOMMENDED, True),
             )
-        ] = bool
+        ] = BooleanSelector()
 
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(schema_dict),
+            errors=errors,
+        )
             errors=errors,
         )
 
@@ -210,6 +262,13 @@ class ZaiOptionsFlowHandler(OptionsFlow):
             )
 
         options = self.config_entry.options or {}
+
+        # Get available areas for filter
+        area_reg = ar.async_get(self.hass)
+        area_options = [
+            {"value": area.id, "label": area.name}
+            for area in area_reg.async_list_areas()
+        ]
 
         schema = vol.Schema(
             {
@@ -247,6 +306,26 @@ class ZaiOptionsFlowHandler(OptionsFlow):
                             max=1,
                             step=0.05,
                             mode=NumberSelectorMode.SLIDER,
+                        )
+                    )
+                ),
+                vol.Optional(
+                    CONF_AREA_FILTER,
+                    default=options.get(CONF_AREA_FILTER, DEFAULT[CONF_AREA_FILTER]),
+                ): (
+                    SelectSelector(
+                        SelectSelectorConfig(
+                            mode=SelectSelectorMode.DROPDOWN,
+                            options=area_options,
+                            multiple=True,
+                        )
+                    )
+                    if area_options
+                    else SelectSelector(
+                        SelectSelectorConfig(
+                            mode=SelectSelectorMode.DROPDOWN,
+                            options=[],
+                            multiple=True,
                         )
                     )
                 ),
